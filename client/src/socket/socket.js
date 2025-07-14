@@ -45,23 +45,26 @@ export const useSocket = () => {
     socket.emit('private_message', { to, message });
   };
 
-  // Set typing status
+  // Typing status
   const setTyping = (isTyping) => {
     socket.emit('typing', isTyping);
   };
 
-  // Socket event listeners
+  // React to a message
+  const sendReaction = (messageId, emoji) => {
+    socket.emit('react_message', { messageId, emoji });
+  };
+
+  // Mark message as seen
+  const markMessageSeen = (messageId) => {
+    socket.emit('message_seen', { messageId });
+  };
+
+  // Listen to socket events
   useEffect(() => {
-    // Connection events
-    const onConnect = () => {
-      setIsConnected(true);
-    };
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
 
-    const onDisconnect = () => {
-      setIsConnected(false);
-    };
-
-    // Message events
     const onReceiveMessage = (message) => {
       setLastMessage(message);
       setMessages((prev) => [...prev, message]);
@@ -72,13 +75,9 @@ export const useSocket = () => {
       setMessages((prev) => [...prev, message]);
     };
 
-    // User events
-    const onUserList = (userList) => {
-      setUsers(userList);
-    };
+    const onUserList = (userList) => setUsers(userList);
 
     const onUserJoined = (user) => {
-      // You could add a system message here
       setMessages((prev) => [
         ...prev,
         {
@@ -91,7 +90,6 @@ export const useSocket = () => {
     };
 
     const onUserLeft = (user) => {
-      // You could add a system message here
       setMessages((prev) => [
         ...prev,
         {
@@ -103,12 +101,25 @@ export const useSocket = () => {
       ]);
     };
 
-    // Typing events
-    const onTypingUsers = (users) => {
-      setTypingUsers(users);
+    const onTypingUsers = (users) => setTypingUsers(users);
+
+    const onMessageReaction = ({ messageId, emoji }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, reaction: emoji } : msg
+        )
+      );
     };
 
-    // Register event listeners
+    const onMessageSeen = ({ messageId, seenBy }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId ? { ...msg, seenBy } : msg
+        )
+      );
+    };
+
+    // Register listeners
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('receive_message', onReceiveMessage);
@@ -117,8 +128,10 @@ export const useSocket = () => {
     socket.on('user_joined', onUserJoined);
     socket.on('user_left', onUserLeft);
     socket.on('typing_users', onTypingUsers);
+    socket.on('message_reaction', onMessageReaction);
+    socket.on('message_seen', onMessageSeen);
 
-    // Clean up event listeners
+    // Cleanup
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
@@ -128,6 +141,8 @@ export const useSocket = () => {
       socket.off('user_joined', onUserJoined);
       socket.off('user_left', onUserLeft);
       socket.off('typing_users', onTypingUsers);
+      socket.off('message_reaction', onMessageReaction);
+      socket.off('message_seen', onMessageSeen);
     };
   }, []);
 
@@ -143,7 +158,9 @@ export const useSocket = () => {
     sendMessage,
     sendPrivateMessage,
     setTyping,
+    sendReaction,
+    markMessageSeen,
   };
 };
 
-export default socket; 
+export default socket;

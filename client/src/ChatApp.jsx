@@ -2,16 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useSocket } from './socket/socket';
 import EmojiPicker from 'emoji-picker-react';
 
-
 const ChatApp = () => {
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState('');
   const [joined, setJoined] = useState(false);
   const [privateMessage, setPrivateMessage] = useState('');
-  const [selectedUser, setSelectedUser] = useState(null); // 👈 NEW
+  const [selectedUser, setSelectedUser] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-
 
   const {
     isConnected,
@@ -22,6 +19,8 @@ const ChatApp = () => {
     sendMessage,
     sendPrivateMessage,
     setTyping,
+    sendReaction,
+    socket,
   } = useSocket();
 
   const handleJoin = () => {
@@ -48,6 +47,15 @@ const ChatApp = () => {
   useEffect(() => {
     setTyping(message.length > 0);
   }, [message]);
+
+  // ✅ Emit seen for all messages that are not system and not from self
+  useEffect(() => {
+    messages.forEach((msg) => {
+      if (!msg.system && msg.sender !== username) {
+        socket.emit('message_seen', { messageId: msg.id });
+      }
+    });
+  }, [messages]);
 
   return (
     <div className="max-w-3xl mx-auto p-4">
@@ -102,8 +110,25 @@ const ChatApp = () => {
             <div className="col-span-3 space-y-2">
               <div className="h-64 overflow-y-scroll border rounded p-2 bg-white">
                 {messages.map((msg) => (
-                  <div key={msg.id} className={msg.system ? 'italic text-gray-500' : ''}>
-                    <strong>{msg.sender || ''}</strong>: {msg.message}
+                  <div key={msg.id} className="mb-2">
+                    <div className={msg.system ? 'italic text-gray-500' : ''}>
+                      <strong>{msg.sender || ''}</strong>: {msg.message}
+                      {msg.reaction && (
+                        <span className="ml-2 text-lg">{msg.reaction}</span>
+                      )}
+                      {msg.seenBy?.length > 0 && (
+                        <span className="ml-2 text-xs text-green-600">
+                          Seen by: {msg.seenBy.join(', ')}
+                        </span>
+                      )}
+                    </div>
+                    {!msg.system && (
+                      <div className="flex gap-2 text-sm mt-1">
+                        <button onClick={() => sendReaction(msg.id, '❤️')}>❤️</button>
+                        <button onClick={() => sendReaction(msg.id, '😂')}>😂</button>
+                        <button onClick={() => sendReaction(msg.id, '👍')}>👍</button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -116,48 +141,48 @@ const ChatApp = () => {
 
               {/* Public message input */}
               <div className="relative">
-  <div className="flex gap-2">
-    <input
-      className="flex-grow p-2 border rounded"
-      type="text"
-      placeholder="Type a public message"
-      value={message}
-      onChange={(e) => setMessage(e.target.value)}
-      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-    />
-    <button
-      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-      className="px-2 py-2 rounded text-black"
-    >
-      😊
-    </button>
-    <button
-      onClick={handleSend}
-      className="bg-green-600 text-white px-4 py-2 rounded"
-    >
-      Send
-    </button>
-  </div>
+                <div className="flex gap-2">
+                  <input
+                    className="flex-grow p-2 border rounded"
+                    type="text"
+                    placeholder="Type a public message"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  />
+                  <button
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    className="px-2 py-2 rounded text-black"
+                  >
+                    😊
+                  </button>
+                  <button
+                    onClick={handleSend}
+                    className="bg-green-600 text-white px-4 py-2 rounded"
+                  >
+                    Send
+                  </button>
+                </div>
 
-  {/* Emoji Picker */}
-  {showEmojiPicker && (
-    <div className="absolute z-10 mt-2">
-      <EmojiPicker
-        onEmojiClick={(emojiData) => {
-          setMessage((prev) => prev + emojiData.emoji);
-          setShowEmojiPicker(false);
-        }}
-        height={350}
-      />
-    </div>
-  )}
-</div>
+                {showEmojiPicker && (
+                  <div className="absolute z-10 mt-2">
+                    <EmojiPicker
+                      onEmojiClick={(emojiData) => {
+                        setMessage((prev) => prev + emojiData.emoji);
+                        setShowEmojiPicker(false);
+                      }}
+                      height={350}
+                    />
+                  </div>
+                )}
+              </div>
 
-
-              {/* Private message input (conditional) */}
+              {/* Private message input */}
               {selectedUser && (
                 <div className="mt-4 border-t pt-2">
-                  <h4 className="font-semibold">Private chat with {selectedUser.username}</h4>
+                  <h4 className="font-semibold">
+                    Private chat with {selectedUser.username}
+                  </h4>
                   <div className="flex gap-2 mt-2">
                     <input
                       className="flex-grow p-2 border rounded"

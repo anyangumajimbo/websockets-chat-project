@@ -35,6 +35,31 @@ const typingUsers = {};
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
+  // Handle message reactions
+socket.on('react_message', ({ messageId, emoji }) => {
+  // Optional: update the stored message object
+  const messageIndex = messages.findIndex((msg) => msg.id === messageId);
+  if (messageIndex !== -1) {
+    messages[messageIndex].reaction = emoji;
+  }
+
+  // Broadcast to all clients
+  io.emit('message_reaction', { messageId, emoji });
+});
+
+socket.on('message_seen', ({ messageId }) => {
+  const message = messages.find((msg) => msg.id === messageId);
+  const username = users[socket.id]?.username;
+
+  if (message && username && !message.seenBy?.includes(username)) {
+    message.seenBy = message.seenBy || [];
+    message.seenBy.push(username);
+    io.emit('message_seen', { messageId, seenBy: message.seenBy });
+  }
+});
+
+
+
   // Handle user joining
   socket.on('user_join', (username) => {
     users[socket.id] = { username, id: socket.id };

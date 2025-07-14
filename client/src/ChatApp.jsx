@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSocket } from './socket/socket';
+import EmojiPicker from 'emoji-picker-react';
+
 
 const ChatApp = () => {
   const [username, setUsername] = useState('');
@@ -7,6 +9,9 @@ const ChatApp = () => {
   const [joined, setJoined] = useState(false);
   const [privateMessage, setPrivateMessage] = useState('');
   const [selectedUser, setSelectedUser] = useState(null); // 👈 NEW
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+
 
   const {
     isConnected,
@@ -110,22 +115,44 @@ const ChatApp = () => {
               )}
 
               {/* Public message input */}
-              <div className="flex gap-2">
-                <input
-                  className="flex-grow p-2 border rounded"
-                  type="text"
-                  placeholder="Type a public message"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                />
-                <button
-                  onClick={handleSend}
-                  className="bg-green-600 text-white px-4 py-2 rounded"
-                >
-                  Send
-                </button>
-              </div>
+              <div className="relative">
+  <div className="flex gap-2">
+    <input
+      className="flex-grow p-2 border rounded"
+      type="text"
+      placeholder="Type a public message"
+      value={message}
+      onChange={(e) => setMessage(e.target.value)}
+      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+    />
+    <button
+      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+      className="px-2 py-2 rounded text-black"
+    >
+      😊
+    </button>
+    <button
+      onClick={handleSend}
+      className="bg-green-600 text-white px-4 py-2 rounded"
+    >
+      Send
+    </button>
+  </div>
+
+  {/* Emoji Picker */}
+  {showEmojiPicker && (
+    <div className="absolute z-10 mt-2">
+      <EmojiPicker
+        onEmojiClick={(emojiData) => {
+          setMessage((prev) => prev + emojiData.emoji);
+          setShowEmojiPicker(false);
+        }}
+        height={350}
+      />
+    </div>
+  )}
+</div>
+
 
               {/* Private message input (conditional) */}
               {selectedUser && (
